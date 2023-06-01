@@ -3,10 +3,12 @@ package com.app.service;
 import com.app.dto.InventoryResponse;
 import com.app.dto.OrderLineItemsDto;
 import com.app.dto.OrderRequest;
+import com.app.event.OrderPlacedEvent;
 import com.app.model.Order;
 import com.app.model.OrderLineItems;
 import com.app.repo.OrderRepo;
 import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -22,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
 public class OrderService {
 
     private final OrderRepo orderRepo;
+
+    private final KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
 
     private final WebClient.Builder webClientBuilder;
 
@@ -48,6 +52,7 @@ public class OrderService {
 
         if(allProductsInStock){
             orderRepo.save(order);
+            kafkaTemplate.send("notificationTopic", new OrderPlacedEvent(order.getOrderNumber()));
             return "Order placed successfully";
         }
         else{
